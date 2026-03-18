@@ -12,6 +12,7 @@
   <a href="https://www.npmjs.com/package/unloop-mcp"><img src="https://img.shields.io/npm/v/unloop-mcp?color=E94560&label=npm" alt="npm version"></a>
   <a href="https://github.com/protonese3/unloop-mcp/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License"></a>
   <a href="https://www.npmjs.com/package/unloop-mcp"><img src="https://img.shields.io/npm/dm/unloop-mcp?color=green" alt="npm downloads"></a>
+  <a href="https://github.com/protonese3/unloop-mcp/actions"><img src="https://github.com/protonese3/unloop-mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
 ---
@@ -194,9 +195,26 @@ Returns:
   loop_level       "NONE" | "NUDGE" | "WARNING" | "CRITICAL"
   attempt_number   number
   similar_attempts number     How many previous fixes used the same approach
+  max_similarity   number     Highest similarity score vs any previous fix (0-1)
+  diagnosis        object?    Pattern analysis + what to try next (when loop detected)
   strategies       array?     Escape strategies (when loop detected)
   previous_attempts array?    History of what was tried
 ```
+
+When a loop is detected, the `diagnosis` field tells the AI exactly what's happening:
+
+```json
+{
+  "diagnosis": {
+    "pattern": "You've been changing import/module paths 3 times for an import error. This approach isn't working.",
+    "suggested_action": "Stop changing paths. Check if the file actually exists at the expected location. Then check the module resolution config.",
+    "what_was_tried": ["Changed path to ../Button", "Changed path to ../../Button", "Changed to @/Button"],
+    "what_to_try_next": "Approaches you haven't tried yet: Check the relevant config files. Verify dependencies are installed correctly. Stop changing paths. Check if the file actually exists."
+  }
+}
+```
+
+The diagnosis engine classifies each fix attempt into approach categories (path changes, type annotations, null checks, config changes, etc.), detects which approach is being repeated, and suggests a specific pivot based on the error category.
 
 ### `check_loop_status`
 **Read-only status check.** Returns current state without recording a new attempt. Use before starting complex fixes.

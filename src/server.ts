@@ -4,6 +4,7 @@ import { fingerprint, categorizeError } from "./detection/fingerprint.js";
 import { tokenize, jaccardSimilarity, SIMILARITY_THRESHOLD } from "./detection/similarity.js";
 import { getEscalationLevel, getEscalationMessage } from "./detection/escalation.js";
 import { getStrategies } from "./strategies/registry.js";
+import { diagnose } from "./detection/diagnosis.js";
 import { SessionStore } from "./session/store.js";
 import type { FixAttempt, ErrorCategory, LogFixAttemptResult, LoopStatusResult, ResolveResult } from "./types.js";
 
@@ -73,6 +74,7 @@ IMPORTANT: The quality of detection depends on your fix_description. Be specific
 
       const strategies = getStrategies(level, category);
       const message = getEscalationMessage(level, fpCount);
+      const diag = diagnose(sameErrorAttempts, category, level);
 
       const result: LogFixAttemptResult = {
         status: level === "NONE" ? "ok" : "loop_detected",
@@ -82,6 +84,7 @@ IMPORTANT: The quality of detection depends on your fix_description. Be specific
         max_similarity: maxSimilarity,
         message,
         error_category: category,
+        diagnosis: diag,
         strategies: strategies.length > 0 ? strategies : undefined,
         previous_attempts: fpCount > 1 ? summarizeAttemptHistory(previousAttempts) : undefined,
       };
@@ -116,6 +119,7 @@ Returns the current escalation level, attempt count, and strategies if in a loop
       if (session.current_level !== "NONE" && attempts.length > 0) {
         const lastAttempt = attempts[attempts.length - 1];
         result.strategies = getStrategies(session.current_level, lastAttempt.error_category);
+        result.diagnosis = diagnose(attempts, lastAttempt.error_category, session.current_level);
       }
 
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };

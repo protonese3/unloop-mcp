@@ -87,6 +87,25 @@ describe("categorizeError", () => {
     expect(categorizeError("missing configuration file .env.local")).toBe("config");
   });
 
+  it("detects Python errors", () => {
+    expect(categorizeError("ModuleNotFoundError: No module named 'pandas'")).toBe("import");
+    expect(categorizeError("IndentationError: unexpected indent")).toBe("syntax");
+    expect(categorizeError("KeyError: 'username'")).toBe("runtime");
+    expect(categorizeError("AttributeError: 'NoneType' object has no attribute 'get'")).toBe("runtime");
+    expect(categorizeError("ValueError: invalid literal for int()")).toBe("runtime");
+  });
+
+  it("detects Rust errors", () => {
+    expect(categorizeError("error[E0308]: mismatched types")).toBe("build");
+    expect(categorizeError("trait `Display` is not implemented for `MyStruct`")).toBe("type");
+    expect(categorizeError("cannot find crate `serde`")).toBe("build");
+  });
+
+  it("detects Go errors", () => {
+    expect(categorizeError("goroutine 1 [running]: panic: runtime error")).toBe("runtime");
+    expect(categorizeError("go build: cannot find module")).toBe("build");
+  });
+
   it("returns unknown for unrecognized errors", () => {
     expect(categorizeError("Something went wrong")).toBe("unknown");
   });

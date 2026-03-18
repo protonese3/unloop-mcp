@@ -1,7 +1,8 @@
 import type { SessionState, FixAttempt, EscalationLevel } from "../types.js";
 
-const GC_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
-const SESSION_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+const GC_INTERVAL_MS = 10 * 60 * 1000;
+const SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+const DECAY_WINDOW_MS = 30 * 60 * 1000; // Attempts older than 30 min count half
 
 export class SessionStore {
   private sessions = new Map<string, SessionState>();
@@ -37,6 +38,22 @@ export class SessionStore {
     session.fingerprint_counts.set(attempt.error_fingerprint, count);
 
     return count;
+  }
+
+  /**
+   * Returns the "effective" count for an error fingerprint,
+   * applying temporal decay: attempts older than DECAY_WINDOW
+   * count as 0.5 instead of 1.
+   */
+  getEffectiveCount(sessionId: string, fp: string): number {
+    const now = Date.now();
+    const attempts = this.getAttemptsForFingerprint(sessionId, fp);
+    let count = 0;
+    for (const a of attempts) {
+      const age = now - a.timestamp;
+      count += age > DECAY_WINDOW_MS ? 0.5 : 1;
+    }
+    return Math.ceil(count);
   }
 
   updateLevel(sessionId: string, level: EscalationLevel): void {

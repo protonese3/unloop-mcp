@@ -27,6 +27,13 @@ export interface EscapeStrategy {
   reasoning: string;
 }
 
+export interface Diagnosis {
+  pattern: string;
+  suggested_action: string;
+  what_was_tried: string[];
+  what_to_try_next: string;
+}
+
 export interface LogFixAttemptResult {
   status: "ok" | "loop_detected";
   loop_level: EscalationLevel;
@@ -35,6 +42,7 @@ export interface LogFixAttemptResult {
   max_similarity: number;
   message: string;
   error_category: ErrorCategory;
+  diagnosis?: Diagnosis;
   strategies?: EscapeStrategy[];
   previous_attempts?: string[];
 }
@@ -44,6 +52,7 @@ export interface LoopStatusResult {
   attempt_number: number;
   similar_attempts: number;
   message: string;
+  diagnosis?: Diagnosis;
   strategies?: EscapeStrategy[];
   previous_attempts?: string[];
 }

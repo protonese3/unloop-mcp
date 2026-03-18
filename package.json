@@ -1,6 +1,6 @@
 {
   "name": "unloop-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP server that detects AI fix loops and forces course correction",
   "license": "MIT",
   "type": "module",

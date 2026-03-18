@@ -33,12 +33,19 @@ export function fingerprint(message: string): string {
 }
 
 const CATEGORY_PATTERNS: [ErrorCategory, RegExp][] = [
-  ["syntax", /syntax\s*error|unexpected\s*token|parsing\s*error|unterminated|unexpected\s*end\s*of|invalid\s*syntax/i],
-  ["build", /build\s*fail|compilation\s*error|webpack|esbuild|rollup|vite.*error|tsc.*error|make.*error|cargo.*error|go\s*build/i],
-  ["test", /test\s*fail|assert(?:ion)?(?:\s*error)?|expect\(.*\)\.to(?:be|equal|have|match|throw)|jest|vitest|pytest|mocha|rspec|test.*(?:passed|failed)/i],
-  ["import", /cannot\s*find\s*module|module\s*not\s*found|import\s*error|no\s*module\s*named|failed\s*to\s*resolve|unable\s*to\s*resolve|could\s*not\s*resolve/i],
-  ["type", /type\s*error|type\s*'[^']*'\s*is\s*not\s*assignable|cannot\s*find\s*name|ts\d{4}|property\s*'[^']*'\s*does\s*not\s*exist|argument.*not\s*assignable|incompatible\s*types?/i],
-  ["runtime", /runtime\s*error|reference\s*error|null\s*pointer|undefined\s*is\s*not|cannot\s*read\s*propert|segmentation\s*fault|stack\s*overflow|out\s*of\s*memory|ENOENT|EACCES|ECONNREFUSED|unhandled.*rejection|uncaught/i],
+  // Syntax — JS/TS/Python/Rust/Go
+  ["syntax", /syntax\s*error|unexpected\s*token|parsing\s*error|unterminated|unexpected\s*end\s*of|invalid\s*syntax|expected\s*.*found|IndentationError|TabError/i],
+  // Build — all languages
+  ["build", /build\s*fail|compilation\s*error|webpack|esbuild|rollup|vite.*error|tsc.*error|make.*error|cargo.*error|go\s*build|error\[E\d+\]|cannot\s*find\s*crate|linker.*error/i],
+  // Test — all frameworks
+  ["test", /test\s*fail|assert(?:ion)?(?:\s*error)?|expect\(.*\)\.to(?:be|equal|have|match|throw)|jest|vitest|pytest|mocha|rspec|test.*(?:passed|failed)|FAIL\s|panic.*test/i],
+  // Import — JS/TS/Python/Go/Rust
+  ["import", /cannot\s*find\s*module|module\s*not\s*found|import\s*error|no\s*module\s*named|failed\s*to\s*resolve|unable\s*to\s*resolve|could\s*not\s*resolve|ModuleNotFoundError|ImportError|unresolved\s*import/i],
+  // Type — TS/Rust/Go
+  ["type", /type\s*error|type\s*'[^']*'\s*is\s*not\s*assignable|cannot\s*find\s*name|ts\d{4}|property\s*'[^']*'\s*does\s*not\s*exist|argument.*not\s*assignable|incompatible\s*types?|mismatched\s*types|expected.*found|trait.*not\s*implemented|does\s*not\s*implement/i],
+  // Runtime — all languages
+  ["runtime", /runtime\s*error|reference\s*error|null\s*pointer|undefined\s*is\s*not|cannot\s*read\s*propert|segmentation\s*fault|stack\s*overflow|out\s*of\s*memory|ENOENT|EACCES|ECONNREFUSED|unhandled.*rejection|uncaught|panic(?!.*test)|KeyError|IndexError|ValueError|AttributeError|goroutine.*panic/i],
+  // Config
   ["config", /invalid\s*configuration|configuration\s*error|\.env|tsconfig|webpack\.config|vite\.config|eslint.*config|babel.*config|invalid\s*option|unknown\s*option|unrecognized\s*option|ENOENT.*config|missing.*configuration/i],
 ];
 
