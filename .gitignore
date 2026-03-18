@@ -1,6 +1,7 @@
 node_modules/
 dist/
 *.tsbuildinfo
+package-lock.json
 
 # Motion graphics project
 motion/
@@ -12,6 +13,7 @@ image*.png
 # Trap project
 trap-project/node_modules/
 trap-project/dist/
+trap-project/package-lock.json
 
 # IDE/OS
 .DS_Store
@@ -20,6 +22,13 @@ Thumbs.db
 
 # Claude local settings
 .claude/settings.local.json
+.claude/settings.json
+.agents/
+skills-lock.json
 
 # Original PRD
 Unloop_PRD.docx
+
+# Misc
+miaomiaobaobao.py
+posts/
