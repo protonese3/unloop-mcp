@@ -8,6 +8,33 @@
   <strong>MCP server that detects when AI coding assistants get stuck in fix loops and forces them to change approach.</strong>
 </p>
 
+<p align="center">
+  <a href="https://www.npmjs.com/package/unloop-mcp"><img src="https://img.shields.io/npm/v/unloop-mcp?color=E94560&label=npm" alt="npm version"></a>
+  <a href="https://github.com/protonese3/unloop-mcp/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License"></a>
+  <a href="https://www.npmjs.com/package/unloop-mcp"><img src="https://img.shields.io/npm/dm/unloop-mcp?color=green" alt="npm downloads"></a>
+</p>
+
+---
+
+## Let your AI set it up for you
+
+Paste this into Claude Code, Cursor, or any MCP-compatible assistant and it will install and configure Unloop for you:
+
+```
+Install Unloop MCP to detect fix loops in this project. Here's what to do:
+
+1. Run: claude mcp add unloop -s user -- npx -y unloop-mcp
+   (Or for Cursor: create .cursor/mcp.json with {"mcpServers":{"unloop":{"command":"npx","args":["-y","unloop-mcp"]}}})
+
+2. Download the rules file for this IDE from https://raw.githubusercontent.com/protonese3/unloop-mcp/master/rules/claude.md
+   and save it to .claude/rules/unloop.md (or the equivalent for Cursor: .cursor/rules/unloop.mdc)
+
+3. Verify the MCP server is connected by running: claude mcp list
+
+After setup, you must follow the Unloop protocol: call log_fix_attempt after every fix attempt,
+obey escalation levels (NUDGE/WARNING/CRITICAL), and call resolve_loop when the error is fixed.
+```
+
 ---
 
 ## What is Unloop?
