@@ -1,0 +1,805 @@
+---
+description: "Unloop: AI fix loop detection, prevention, and recovery system. Monitors every error fix attempt using fingerprinting and similarity analysis. Provides escalating intervention (NUDGE → WARNING → CRITICAL) with context-aware escape strategies. MANDATORY protocol for all error-fixing activity."
+globs:
+alwaysApply: true
+---
+
+# Unloop — AI Fix Loop Detection & Recovery Protocol
+
+## What is Unloop and why it exists
+
+Unloop is an MCP server running alongside your coding session. It solves a specific, well-documented problem: **you (the AI) get stuck in fix loops**. You encounter an error, try to fix it, the fix doesn't work, and you try a slightly different variation of the same approach — 5, 10, 20 times — without ever stepping back to reconsider. This wastes the user's time, burns their tokens, and often makes the codebase worse with accumulated bad changes.
+
+You can't detect this yourself because:
+- You have no structured memory of what you've already tried
+- You're biased toward incremental variations of your last attempt
+- Earlier attempts scroll out of your context window after enough messages
+- You have no meta-reasoning system that says "you're going in circles"
+
+Unloop provides that meta-reasoning. It tracks every fix attempt, fingerprints the errors, measures the similarity between your approaches, and tells you — with increasing urgency — when you need to stop and change direction.
+
+**This protocol is not optional. It is mandatory whenever you are fixing errors.**
+
+---
+
+## How the system works (so you understand WHY each rule matters)
+
+### Error fingerprinting
+Every error message you report is normalized: file paths, line numbers, UUIDs, timestamps, hex hashes, ANSI codes, and stack frames are stripped out. The result is hashed into a stable fingerprint. This means "Cannot find module './Button' in /Users/alice/src/App.tsx:42" and "Cannot find module './Button' in /Users/bob/src/Main.tsx:7" produce the **same fingerprint** — they're structurally identical errors.
+
+### Fix similarity detection
+Your `fix_description` is tokenized (lowercased, stop-words removed) and compared against every previous fix description for the same error fingerprint using Jaccard similarity. If two descriptions share more than 55% of their meaningful words, they're considered "the same approach." This is how Unloop detects that you're making minor variations instead of genuinely different attempts.
+
+**This is why your fix descriptions must be specific.** If you write "fix the import" every time, every attempt looks identical to the engine, and you'll escalate faster. If you write detailed descriptions, the engine can distinguish genuinely different approaches from repetitive ones.
+
+### Escalation levels
+Based on how many times you've hit the same error fingerprint:
+
+| Level | Trigger | What it means |
+|---|---|---|
+| `NONE` | < 3 attempts | Normal operation. Unloop is silently tracking. |
+| `NUDGE` | 3+ attempts | Pattern emerging. You may be starting to loop. |
+| `WARNING` | 5+ attempts | Confirmed loop. You've tried the same thing too many times. |
+| `CRITICAL` | 7+ attempts | Emergency. Your approach is not working. Stop everything. |
+
+### Strategy cascade
+At each escalation level, Unloop returns escape strategies. Higher levels include strategies from lower levels:
+- NUDGE strategies focus on re-examining the problem
+- WARNING strategies include NUDGE's plus approaches like reverting and isolating
+- CRITICAL strategies include WARNING's plus full revert and asking the user
+
+Strategies are also matched to error category (syntax, type, import, build, test, runtime) so you get targeted advice, not generic suggestions.
+
+---
+
+## THE PROTOCOL — Complete rules
+
+### ━━━ Rule 1: Log every fix attempt ━━━
+
+**After ANY action you take to fix an error**, call `log_fix_attempt`. No exceptions.
+
+#### What counts as a "fix attempt"
+
+You MUST log when you:
+- Edit source code to fix an error (adding, modifying, or removing lines)
+- Edit configuration files (tsconfig.json, webpack.config, .env, docker-compose, nginx.conf, etc.)
+- Edit package manifests (package.json, requirements.txt, Cargo.toml, go.mod, etc.)
+- Run install commands intended to fix an error (npm install, pip install, cargo add, etc.)
+- Run build/compile commands after a code change intended to fix something
+- Change file permissions, directory structure, or file names to fix an error
+- Add, remove, or modify environment variables
+- Change database schema, migrations, or seed data
+- Modify CI/CD configuration
+- Revert code as part of a fix strategy (log the revert as a deliberate fix action)
+- Apply a suggestion from documentation, Stack Overflow, or any other source
+- Change runtime versions (Node, Python, Go, etc.)
+- Clear caches, rebuild, or restart services as a fix
+
+You do NOT need to log when you:
+- Write new code that isn't responding to an error
+- Refactor code when there's no error to fix
+- Add new features or functionality
+- Write tests for working code
+- Update documentation
+- Read files to understand code (no changes made)
+- Run diagnostic commands that don't change anything (like `git status` or `ls`)
+
+#### How to call it — parameter by parameter
+
+```
+log_fix_attempt({
+  error_message: "...",
+  files_involved: ["..."],
+  fix_description: "...",
+  session_id: "..." // optional
+})
+```
+
+##### `error_message` — The error you're trying to fix
+
+Include the **full error** or the most meaningful portion. This is what gets fingerprinted.
+
+**What to include:**
+- The error type/class (TypeError, SyntaxError, ImportError, ENOENT, etc.)
+- The full error message body
+- The first 2-3 relevant stack trace lines (the ones in the user's code, not library internals)
+- Any error codes (TS2304, E0308, etc.)
+- Build/test output showing the failure
+
+**What NOT to include:**
+- Hundreds of lines of irrelevant stack trace through node_modules or library internals
+- The entire terminal output of a build (just the error portion)
+- Warnings that aren't related to the error you're fixing
+
+**Good examples:**
+```
+"TypeError: Cannot read properties of undefined (reading 'map')\n  at UserList (src/components/UserList.tsx:23:18)\n  at renderWithHooks (node_modules/react-dom/...)"
+```
+```
+"TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.\n  src/utils/calculate.ts(15,23)"
+```
+```
+"Module not found: Error: Can't resolve '@/components/Button' in '/Users/dev/project/src/pages'"
+```
+```
+"FAIL src/__tests__/auth.test.ts\n  ● AuthService › login › should return a token for valid credentials\n    expect(received).toEqual(expected)\n    Expected: {token: 'abc123'}\n    Received: undefined"
+```
+
+**Bad examples:**
+```
+"error"                          // Useless — no context for fingerprinting
+"it failed"                      // Not the error message
+"see above"                      // The tool can't see your conversation
+"TypeError"                      // Missing the actual message
+```
+
+##### `files_involved` — Every file you touched
+
+List EVERY file you modified, created, or deleted as part of this fix attempt. Be exhaustive.
+
+**Include:**
+- Source code files you edited
+- Config files you changed (tsconfig, webpack, babel, eslint, etc.)
+- Test files you modified
+- Package manifests if you added/removed dependencies
+- Lock files if they changed (package-lock.json, yarn.lock)
+- Migration files if you created/modified them
+- Environment files (.env, .env.local)
+- Any other file your fix touched
+
+**Good examples:**
+```
+["src/components/UserList.tsx", "src/types/User.ts"]
+["package.json", "package-lock.json", "src/utils/api.ts"]
+["tsconfig.json", "src/index.ts", "src/types.d.ts"]
+["src/__tests__/auth.test.ts", "src/services/auth.ts", "src/mocks/handlers.ts"]
+```
+
+**Bad examples:**
+```
+["file"]                         // Which file?
+["src"]                          // A directory, not a file
+[]                               // Empty — you must have touched something
+```
+
+##### `fix_description` — WHAT you changed and WHY
+
+This is the most important parameter. The similarity engine compares this text against your previous descriptions to detect repetition. **The more specific you are, the better Unloop works.**
+
+Your description must answer three questions:
+1. **WHAT did you change?** (Specific code/config changes)
+2. **WHY do you think this fixes the error?** (Your reasoning)
+3. **HOW is this different from your last attempt?** (If applicable)
+
+**Excellent descriptions (Unloop can track your approach effectively):**
+
+```
+"Changed the import of 'Button' from relative path './components/Button' to absolute path '@/components/Button' because the tsconfig.json has baseUrl set to 'src' and paths configured with '@/*' alias. Previous attempt used '../components/Button' which was also wrong."
+```
+
+```
+"Added explicit type annotation `users: User[]` to the useState hook call: `useState<User[]>([])`. The error said 'never[]' is not assignable to 'User[]', which happens because TypeScript infers the empty array as never[] without the generic parameter."
+```
+
+```
+"Replaced the synchronous fs.readFileSync call with await fs.readFile() and added the async keyword to the enclosing function processConfig(). The error was 'Cannot use await in non-async function' — the previous fix tried to wrap it in a Promise constructor which was unnecessary."
+```
+
+```
+"Deleted the node_modules directory and package-lock.json, then ran npm install fresh. The error was a duplicate React version causing hooks to fail. This is an environment fix, not a code change — previous attempts tried to fix the hook call itself."
+```
+
+```
+"Moved the useEffect hook call above the early return statement on line 15. React hooks must be called unconditionally and in the same order every render. The previous fix tried to wrap the early return in a useMemo which doesn't solve the hook ordering problem."
+```
+
+**Poor descriptions (Unloop cannot distinguish approaches):**
+
+```
+"Fixed the error"                // WHAT did you fix? HOW?
+"Updated the import"             // Which import? What change? Why?
+"Try a different approach"       // What approach?
+"Fix"                            // Meaningless
+"Changed the code"               // What code? What change?
+"Added null check"               // WHERE? On what variable? Why was it null?
+"Fixed types"                    // Which types? What was wrong? What did you change?
+```
+
+**Mediocre descriptions (better, but still too vague):**
+
+```
+"Fixed the import path"          // OK but: from what to what? Why was it wrong?
+"Added error handling"           // Where? What kind? Try-catch? Fallback? Validation?
+"Updated the test"               // How? Changed assertion? Changed input? Changed mock?
+```
+
+##### `session_id` — For parallel task isolation (optional)
+
+If you're working on multiple independent error-fixing tasks within the same conversation (e.g., fixing a build error AND a separate test failure), use different session IDs so their tracking doesn't interfere:
+
+```
+// Fixing the build error
+log_fix_attempt({
+  error_message: "Build failed...",
+  fix_description: "...",
+  files_involved: ["..."],
+  session_id: "build-fix"
+})
+
+// Separately fixing a test
+log_fix_attempt({
+  error_message: "Test failed...",
+  fix_description: "...",
+  files_involved: ["..."],
+  session_id: "test-fix"
+})
+```
+
+If you're only fixing one error at a time (the common case), omit this parameter — it defaults to "default".
+
+---
+
+### ━━━ Rule 2: Respond to escalation levels ━━━
+
+When `log_fix_attempt` returns a response, **read the `loop_level` field first and follow the corresponding protocol below.** Do not skip this. Do not "quickly try one more thing" before following the protocol.
+
+#### Level: NONE
+
+The tool is tracking your attempt. No loop detected. Continue your work normally.
+
+**What to do:**
+- Continue with your fix
+- Read the `attempt_number` — if it's 2, you're one attempt away from NUDGE. Make sure your next attempt is genuinely different.
+
+**What NOT to do:**
+- Nothing extra needed. Just continue.
+
+#### Level: NUDGE (3+ attempts on same error)
+
+You are **beginning to loop**. The same error has appeared 3 or more times. This is NOT informational — it's a directive to change your approach.
+
+**What you MUST do — in this order:**
+
+1. **STOP** what you're doing. Do not continue with the code change you were planning.
+
+2. **Read the `previous_attempts` field** in the response. This shows you exactly what you've already tried, with timestamps. Study this list.
+
+3. **Read the `similar_attempts` count.** If this is > 0, you are repeating yourself — your recent fix descriptions overlap significantly with previous ones.
+
+4. **Re-read the error message from scratch.** Not the version you've been carrying in your head — go back to the actual error. You may have been fixating on the wrong part.
+
+5. **Read EVERY strategy** in the `strategies` array of the response. Don't just skim — read the `action` and `reasoning` of each one.
+
+6. **Choose a strategy that is fundamentally different** from anything in your `previous_attempts` list. "Fundamentally different" means a different mechanism, not a different value for the same mechanism. Examples:
+   - If you've been changing import paths → check if the package is installed
+   - If you've been modifying type annotations → check if the API actually returns what you think
+   - If you've been editing the function → check if the caller is passing wrong arguments
+   - If you've been fixing the code → check if the config is wrong
+   - If you've been looking at the file the error points to → look at the file that CALLS it
+
+7. **Tell the user what's happening.** Say something like: "I've tried 3 approaches for this error without success. My previous attempts were: [brief list]. I'm now going to try a different approach: [describe new approach]." This keeps the user informed and gives them a chance to redirect you.
+
+8. **Only then proceed** with your new approach.
+
+**Common mistakes at NUDGE level:**
+- Thinking "but this next try will definitely work" — that's what you thought the last 2 times
+- Making a "slightly different" variation — if the overall approach is the same, it's not different enough
+- Ignoring the strategies because you have your own idea — the strategies exist because your ideas haven't worked
+- Not telling the user — they deserve to know you've been stuck
+
+#### Level: WARNING (5+ attempts on same error)
+
+You are **in a confirmed fix loop**. You have tried the same error 5 or more times with approaches that the similarity engine considers repetitive. This is serious.
+
+**What you MUST do — in this order:**
+
+1. **STOP writing code immediately.** Do NOT complete the edit you were working on. Do NOT run one more command. Stop.
+
+2. **Read the full response** including `previous_attempts` and all `strategies`.
+
+3. **Consider reverting all your changes.** 5+ failed fix attempts means your accumulated changes are likely making the codebase worse, not better. Seriously consider:
+   ```
+   git stash        # if using git
+   # or manually undo every change since the error first appeared
+   ```
+   Reverting feels like losing progress, but it's the fastest path forward. Your "progress" was 5 failed attempts — it's not progress.
+
+4. **If strategies say to read docs, check config, or investigate the environment — do that FIRST.** Do NOT write more code until you've done the research. Open the documentation. Read it. Check the config file. Verify the environment. This is not optional.
+
+5. **Formulate a completely new approach** based on the strategies and your research. This approach must be qualitatively different from everything in your previous_attempts list. Not a variation — a different category of fix entirely.
+
+6. **Tell the user explicitly:**
+   ```
+   "I've been stuck on this error for [N] attempts. Here's what I've tried:
+   1. [Attempt 1 summary]
+   2. [Attempt 2 summary]
+   3. [Attempt 3 summary]
+   ...
+   None of these worked. I'm now going to try a completely different approach: [describe].
+   Would you like me to proceed, or do you have a different suggestion?"
+   ```
+
+7. **Wait for user acknowledgment** if possible. They may have context that saves you from another round of failures.
+
+8. **If you proceed**, apply your new approach and log it with `log_fix_attempt` as usual.
+
+**Common mistakes at WARNING level:**
+- "Just one more try" — NO. You've already tried 5 times. Stop.
+- Making another incremental variation — the similarity engine already flagged this pattern
+- Not reverting — accumulated failed fixes create new bugs on top of the original
+- Skipping the research step — if 5 code changes didn't work, maybe the problem isn't the code
+- Not communicating with the user — they're watching you spin in circles and getting frustrated
+
+#### Level: CRITICAL (7+ attempts on same error)
+
+**EMERGENCY STOP.** You have failed to fix this error 7 or more times. Your approach is fundamentally not working. Continuing will only waste more time and tokens.
+
+**What you MUST do — in this exact order:**
+
+1. **STOP IMMEDIATELY.** No more code. No more commands. No more "just this one thing." STOP.
+
+2. **Revert ALL changes** you've made since this error first appeared:
+   ```
+   git stash
+   # OR: git checkout -- .
+   # OR: manually undo everything
+   ```
+   Confirm the revert succeeded. The codebase should be in the state it was BEFORE you started trying to fix this error.
+
+3. **Compose a comprehensive message to the user** with the following structure:
+   ```
+   "I've attempted to fix this error [N] times without success. I need your help.
+
+   **The error:**
+   [Full error message]
+
+   **What I tried (in order):**
+   1. [Approach 1]: [What I did] → [Why it failed]
+   2. [Approach 2]: [What I did] → [Why it failed]
+   3. [Approach 3]: [What I did] → [Why it failed]
+   ... (all attempts)
+
+   **What I think the root cause might be:**
+   [Your best theory based on all the evidence]
+
+   **What I haven't tried:**
+   [Any approaches you can think of that you haven't attempted]
+
+   **My recommendation:**
+   [Your suggestion for what to do next, OR an honest "I don't know"]
+
+   Would you like me to try one of these alternative approaches, or would you prefer to handle this differently?"
+   ```
+
+4. **WAIT for the user to respond.** Do NOT proceed on your own. Do NOT try another fix. The user must explicitly tell you what to do next.
+
+5. **If the user says "keep trying"** or "try again":
+   - Call `check_loop_status` first
+   - Tell the user: "The loop detection system recommends stopping. I'm at CRITICAL level with [N] failed attempts. Are you sure you'd like me to continue?"
+   - If they confirm, use a fundamentally different approach and log it
+
+**What "fundamentally different" means at CRITICAL:**
+This doesn't mean trying a different variation of the same approach category. It means:
+- If you've been fixing source code → the problem might be in the build system, the environment, or the test itself
+- If you've been fixing one file → the problem might be in a completely different file
+- If you've been adding code → try removing code instead
+- If you've been trying to make the current approach work → consider if the entire approach should be abandoned and replaced
+- If you've been focused on the error location → trace the issue back to its actual origin, which may be 5 files away
+
+**Common mistakes at CRITICAL level:**
+- "I know what the problem is now" — you thought that 6 times already. Stop.
+- Making one more change before telling the user — NO. Revert and communicate first.
+- Giving a vague summary to the user — be comprehensive. List every attempt.
+- Suggesting you continue without alternatives — always offer the user an exit ramp
+- Not reverting — this is the most common and most damaging mistake. REVERT.
+
+---
+
+### ━━━ Rule 3: Resolve when the error is fixed ━━━
+
+When the error is **confirmed fixed** (build passes, test passes, runtime error gone), immediately call `resolve_loop`:
+
+```
+resolve_loop({
+  session_id: "..." // same session_id you've been using, or omit for default
+})
+```
+
+**Why this matters:** If you don't resolve, the counter keeps going. The next UNRELATED error you encounter will inherit the inflated attempt count from the previous error, causing false escalation. You'll hit NUDGE on attempt 1 of a new error because the old error's 4 attempts are still active.
+
+**When to call resolve:**
+- Build succeeds after it was failing
+- Test passes after it was failing
+- Runtime error stops occurring
+- The user confirms the fix works
+- You've verified the error is gone through any reliable means
+
+**When NOT to call resolve:**
+- The error "might" be fixed but you haven't verified
+- You've moved on to a different error without fixing this one (the original error's state should persist)
+- The user asked you to stop working on it (the state should persist in case you return to it)
+
+---
+
+### ━━━ Rule 4: Pre-check before complex fixes ━━━
+
+**Before starting any fix that involves:**
+- Changes to 3+ files
+- Significant refactoring
+- Changing architecture or design patterns
+- Installing or removing dependencies
+- Modifying build or CI configuration
+- Any change that's hard to revert
+
+**Call `check_loop_status` first:**
+
+```
+check_loop_status({
+  session_id: "..." // optional
+})
+```
+
+This returns the current state without recording a new attempt. Use it for decision-making:
+
+- If `loop_level` is `NONE` → proceed with your complex fix
+- If `loop_level` is `NUDGE` → reconsider. Is this complex fix genuinely different from what you've tried?
+- If `loop_level` is `WARNING` or `CRITICAL` → DO NOT proceed. Follow the WARNING/CRITICAL protocol above first.
+
+**Why this rule exists:** Complex fixes are expensive to revert. If you're already in a loop and you apply a large multi-file change that doesn't work, you've made the situation significantly worse. Check before you invest.
+
+---
+
+### ━━━ Rule 5: Use get_escape_strategies for planning ━━━
+
+When you want strategy suggestions WITHOUT logging an attempt, use `get_escape_strategies`:
+
+```
+get_escape_strategies({
+  error_category: "type",  // optional: "syntax" | "type" | "import" | "build" | "test" | "runtime" | "unknown"
+  session_id: "..."        // optional
+})
+```
+
+**Use this when:**
+- You're at NUDGE or above and planning your next move
+- You want category-specific advice before making a change
+- You're unsure whether your planned approach is different enough from previous attempts
+- You want to present options to the user and need strategy ideas
+
+**The error categories and what they match:**
+
+| Category | Error patterns |
+|---|---|
+| `syntax` | SyntaxError, unexpected token, parsing error, unterminated string/expression |
+| `type` | TypeError, type not assignable, TS errors (TS2304, etc.), incompatible types, property does not exist |
+| `import` | Cannot find module, module not found, import error, failed/unable/could not resolve |
+| `build` | Build failed, compilation error, webpack/esbuild/vite/tsc/cargo errors |
+| `test` | Test failed, assertion errors, expect().toBe/toEqual, jest/vitest/pytest failures |
+| `runtime` | ReferenceError, null pointer, undefined is not, cannot read property, ENOENT, ECONNREFUSED, unhandled rejection |
+| `unknown` | Anything that doesn't match the above patterns |
+
+If you omit `error_category`, the tool will use the category from your last logged attempt.
+
+---
+
+## Complete tool reference
+
+### `log_fix_attempt` — Record and analyze a fix attempt
+
+**Call after:** Every fix attempt (code change, config edit, install, revert, etc.)
+**State change:** Yes — records the attempt and may change escalation level
+**Parameters:**
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `error_message` | string | Yes | Full error message with type, body, and key stack trace lines |
+| `files_involved` | string[] | Yes | Every file touched in this fix (source, config, test, lockfiles) |
+| `fix_description` | string | Yes | Specific description: WHAT changed, WHY, HOW it differs from previous |
+| `session_id` | string | No | Isolation ID for parallel tasks. Default: "default" |
+
+**Returns:**
+```json
+{
+  "status": "ok | loop_detected",
+  "loop_level": "NONE | NUDGE | WARNING | CRITICAL",
+  "attempt_number": 5,
+  "similar_attempts": 3,
+  "error_category": "type",
+  "message": "Human-readable guidance for the AI",
+  "strategies": [
+    {
+      "title": "Strategy name",
+      "action": "Specific steps to execute",
+      "reasoning": "Why this strategy helps in this situation"
+    }
+  ],
+  "previous_attempts": [
+    "#1: Added null check for user object [runtime] (14:23:01)",
+    "#2: Wrapped map() call in optional chaining [runtime] (14:24:15)",
+    "#3: Added default empty array to useState [runtime] (14:25:30)"
+  ]
+}
+```
+
+**Field meanings:**
+- `status`: "ok" = no loop, "loop_detected" = NUDGE or higher
+- `loop_level`: Current escalation level for this error
+- `attempt_number`: How many times you've hit this same error (same fingerprint)
+- `similar_attempts`: How many previous fixes had >55% word overlap with this one (same approach detection)
+- `error_category`: Auto-detected category used for strategy matching
+- `message`: Guidance text calibrated to the escalation level
+- `strategies`: Actionable escape strategies, ordered by relevance (category-specific first, then general). Present only when loop_level != NONE.
+- `previous_attempts`: Chronological log of what you've tried before. Present when attempt_number > 1. Use this to ensure your next attempt is genuinely different.
+
+### `check_loop_status` — Read-only status check
+
+**Call before:** Complex multi-file fixes, or to check current state
+**State change:** No — purely read-only
+**Parameters:**
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `session_id` | string | No | Session to check. Default: "default" |
+
+**Returns:** Same shape as `log_fix_attempt` response, but without incrementing any counters. `previous_attempts` shows ALL logged attempts for this session.
+
+### `get_escape_strategies` — Get strategies without logging
+
+**Call when:** Planning next move, want category-specific advice
+**State change:** No
+**Parameters:**
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `error_category` | enum | No | "syntax" / "type" / "import" / "build" / "test" / "runtime" / "unknown". Auto-detected from last attempt if omitted. |
+| `session_id` | string | No | Default: "default" |
+
+**Returns:**
+```json
+{
+  "strategies": [...],
+  "error_category": "type",
+  "loop_level": "WARNING"
+}
+```
+
+### `resolve_loop` — Reset tracking after fix
+
+**Call when:** Error is confirmed fixed
+**State change:** Yes — clears all attempt history and resets escalation to NONE
+**Parameters:**
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `session_id` | string | No | Session to resolve. Default: "default" |
+
+**Returns:**
+```json
+{
+  "status": "resolved",
+  "total_attempts": 5
+}
+```
+
+---
+
+## Real-world scenarios and correct behavior
+
+### Scenario 1: Simple fix, no loop
+
+```
+You: Edit src/App.tsx to fix a TypeError
+→ Call log_fix_attempt(error, files, description)
+← Response: { loop_level: "NONE", attempt_number: 1 }
+You: The build passes now.
+→ Call resolve_loop()
+← Response: { status: "resolved", total_attempts: 1 }
+```
+
+### Scenario 2: Normal NUDGE — change approach
+
+```
+Attempt 1: Change import path from './Button' to '../Button'
+← { loop_level: "NONE", attempt_number: 1 }
+Error persists.
+
+Attempt 2: Change import path from '../Button' to '../../Button'
+← { loop_level: "NONE", attempt_number: 2 }
+Error persists.
+
+Attempt 3: Change import path from '../../Button' to '../components/Button'
+← { loop_level: "NUDGE", attempt_number: 3, similar_attempts: 2,
+    strategies: [...], previous_attempts: ["#1: ...", "#2: ..."] }
+
+CORRECT BEHAVIOR:
+- Stop changing import paths — that's the same approach
+- Read strategies: "Verify the package exists", "Compare with a working import"
+- Check if Button.tsx actually exists at the expected location
+- Check how OTHER imports in the same project resolve paths
+- Tell user: "I've tried 3 different import paths. Let me check the module resolution config instead."
+- Call log_fix_attempt with the new approach: "Checking tsconfig.json paths configuration..."
+
+WRONG BEHAVIOR:
+- Try yet another import path variation
+- Ignore the NUDGE and continue
+- Not tell the user
+```
+
+### Scenario 3: WARNING — revert and research
+
+```
+Attempts 1-4: Various import path changes (all NUDGE level)
+Attempt 5: Try adding an index.ts barrel file
+← { loop_level: "WARNING", attempt_number: 5,
+    message: "STOP. You've tried 5 times..." }
+
+CORRECT BEHAVIOR:
+- STOP coding immediately
+- Read all strategies
+- Revert all changes: git stash
+- Research: open tsconfig.json, check baseUrl, check paths
+- Find that moduleResolution is set to "bundler" but the project uses ts-node which needs "node"
+- Tell user: "After 5 attempts I discovered the issue is in tsconfig.json moduleResolution, not the import paths"
+- Fix the config and log it as a fundamentally different approach
+
+WRONG BEHAVIOR:
+- Try attempt 6 with "just one more idea"
+- Not revert the accumulated changes
+- Change the import path one more time
+```
+
+### Scenario 4: CRITICAL — full stop and ask user
+
+```
+Attempts 1-6: (escalated through NUDGE and WARNING)
+Attempt 7: Tried restructuring the module layout
+← { loop_level: "CRITICAL", attempt_number: 7,
+    message: "CRITICAL: STOP IMMEDIATELY..." }
+
+CORRECT BEHAVIOR:
+"I've attempted to fix this 'Cannot find module' error 7 times without success.
+
+**The error:** Cannot find module '@/components/Button' in src/pages/Home.tsx
+
+**What I tried:**
+1. Changed to relative path '../components/Button' → same error
+2. Changed to '../../components/Button' → same error
+3. Changed to '../components/Button/index' → same error
+4. Checked tsconfig paths, added '@/*' alias → same error
+5. Added index.ts barrel file to components/ → same error
+6. Changed moduleResolution to 'node' → different error, reverted
+7. Restructured to put Button.tsx in same directory → broke other imports
+
+**Root cause theory:** The build tool may not be using tsconfig paths at all — it might need a separate alias configuration (like webpack resolve.alias or vite resolve.alias).
+
+**What I haven't tried:**
+- Checking the actual build tool configuration (webpack/vite config)
+- Checking if there's a babel-plugin-module-resolver in play
+- Looking at what module resolution strategy the build tool uses
+
+What would you like me to do?"
+
+WRONG BEHAVIOR:
+- Try attempt 8
+- Give a vague summary
+- Not revert
+- Not offer alternatives
+```
+
+### Scenario 5: Parallel task isolation
+
+```
+You're fixing two separate issues in the same conversation:
+- A build error in the API
+- A test failure in the frontend
+
+Use different session_ids:
+
+log_fix_attempt({
+  error_message: "Build failed: cannot find declaration file...",
+  files_involved: ["api/src/index.ts"],
+  fix_description: "Added @types/express to devDependencies",
+  session_id: "api-build"
+})
+
+log_fix_attempt({
+  error_message: "FAIL: UserProfile renders correctly",
+  files_involved: ["frontend/src/components/UserProfile.test.tsx"],
+  fix_description: "Updated mock to include missing 'avatar' field",
+  session_id: "frontend-test"
+})
+
+Each session tracks independently — 3 attempts on the API build
+won't trigger NUDGE on the frontend test.
+```
+
+### Scenario 6: Error resolved, then new error
+
+```
+Attempt 1-3: Fixing TypeError (NUDGE triggered)
+You fix the TypeError.
+→ Call resolve_loop()  ← IMPORTANT: resets counters
+
+Now a different error appears (ImportError).
+Attempt 1: Fix the ImportError
+← { loop_level: "NONE", attempt_number: 1 }  ← Fresh start
+
+WITHOUT resolve_loop, the ImportError would have inherited
+the count and you'd already be at NUDGE.
+```
+
+### Scenario 7: Environment issue masquerading as code bug
+
+```
+Attempts 1-5: Trying to fix "Cannot find module 'react'"
+- You've tried reinstalling, clearing cache, checking package.json
+- All your code fixes fail because the problem is the environment
+
+At WARNING, the strategy says: "Check if the environment is broken"
+
+CORRECT BEHAVIOR:
+- Check Node version: node --version
+- Check if node_modules exists and has react
+- Run: rm -rf node_modules && npm install
+- Check for conflicting global installations
+- Check if nvm/volta is pointing to the wrong Node version
+- Check if the working directory is correct
+
+This is a fundamentally different approach from editing source code.
+```
+
+---
+
+## Anti-patterns: What NOT to do
+
+### Anti-pattern 1: The "one more try" trap
+**Wrong:** "I know I'm at NUDGE, but I'm pretty sure this next change will work."
+**Right:** You were "pretty sure" the last 2 times too. Follow the protocol.
+
+### Anti-pattern 2: Describing the same approach differently
+**Wrong:** Attempt 1: "Fix the import path" → Attempt 2: "Correct the module path" → Attempt 3: "Update the require path"
+These are the same approach described with different words. The similarity engine may catch this, but don't rely on it — be honest about whether you're trying something new.
+
+### Anti-pattern 3: Skipping resolve_loop
+**Wrong:** Error is fixed → immediately start on next task
+**Right:** Error is fixed → call resolve_loop() → then start next task
+
+### Anti-pattern 4: Ignoring strategies
+**Wrong:** Get NUDGE response with strategies → ignore strategies → try your own idea
+**Right:** Get NUDGE response → read ALL strategies → choose one that differs from previous attempts
+
+### Anti-pattern 5: Not reverting at WARNING/CRITICAL
+**Wrong:** Keep accumulated changes from 5+ failed attempts and try to fix on top of them
+**Right:** Revert to clean state, then try a new approach from scratch
+
+### Anti-pattern 6: Vague user communication
+**Wrong:** "I'm having trouble with this error. Let me try something different."
+**Right:** "I've tried 5 specific approaches: [list all of them]. None worked. Here's my analysis: [theory]. I'd like to try: [new approach]. What do you think?"
+
+### Anti-pattern 7: Gaming the system
+**Wrong:** Not calling log_fix_attempt to avoid triggering escalation
+**Right:** Always log. The escalation exists to help you, not to punish you. If you're at CRITICAL, you genuinely need to stop.
+
+### Anti-pattern 8: Logging non-fixes
+**Wrong:** Calling log_fix_attempt when writing new features or refactoring
+**Right:** Only log actual error fix attempts. The protocol is for error-fixing, not general coding.
+
+---
+
+## How Unloop helps you — the bigger picture
+
+Without Unloop, a typical fix loop looks like this:
+1. Error appears
+2. You try fix A → fails
+3. You try fix A' (slight variation) → fails
+4. You try fix A'' (another variation) → fails
+5. ...repeat 10+ times...
+6. User gets frustrated and takes over
+
+With Unloop:
+1. Error appears
+2. You try fix A → log it → NONE
+3. You try fix A' → log it → NONE
+4. You try fix A'' → log it → **NUDGE: "You're repeating. Here are alternative strategies."**
+5. You read strategies, try fundamentally different fix B → log it → NONE
+6. Fix B works! → resolve_loop
+
+The difference: instead of 10+ wasted attempts, you course-correct at attempt 3. The user saves time, tokens, and frustration. You deliver a better experience.
+
+**This is why every rule in this protocol matters. Follow it consistently.**

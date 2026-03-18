@@ -1,0 +1,25 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Motion graphics project
+motion/
+composition/
+newcomp*.tsx
+download-*.png
+image*.png
+
+# Trap project
+trap-project/node_modules/
+trap-project/dist/
+
+# IDE/OS
+.DS_Store
+Thumbs.db
+*.swp
+
+# Claude local settings
+.claude/settings.local.json
+
+# Original PRD
+Unloop_PRD.docx

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "unloop": {
+      "command": "node",
+      "args": ["C:/Users/kqtni/Documents/Coding/Unloop MCP/dist/src/index.js"]
+    }
+  }
+}
