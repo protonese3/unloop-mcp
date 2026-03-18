@@ -1,20 +1,49 @@
 {
   "name": "unloop-mcp",
   "version": "0.1.0",
-  "description": "MCP Server that detects AI fix loops and provides escape strategies",
+  "description": "MCP server that detects AI fix loops and forces course correction",
   "license": "MIT",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "bin": {
+    "unloop-mcp": "dist/src/index.js",
     "unloop": "dist/bin/cli.js"
   },
+  "files": [
+    "dist/",
+    "rules/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "node dist/index.js",
-    "test": "NODE_OPTIONS='--experimental-vm-modules' npx jest"
+    "start": "node dist/src/index.js",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' npx jest",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": ["mcp", "ai", "loop-detection", "coding-assistant", "vibe-coding"],
+  "keywords": [
+    "mcp",
+    "ai",
+    "loop-detection",
+    "coding-assistant",
+    "vibe-coding",
+    "claude",
+    "cursor",
+    "windsurf",
+    "cline",
+    "developer-tools",
+    "model-context-protocol"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/protonese3/unloop-mcp.git"
+  },
+  "homepage": "https://github.com/protonese3/unloop-mcp",
+  "bugs": {
+    "url": "https://github.com/protonese3/unloop-mcp/issues"
+  },
+  "author": "protonese3",
   "engines": {
     "node": ">=18"
   },

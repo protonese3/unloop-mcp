@@ -47,20 +47,22 @@ Without Unloop, a stuck AI burns 30+ minutes and 150k+ tokens on the same error.
 
 ## Quick Start
 
-### 1. Clone and build
+### 1. Install
 
 ```bash
-git clone https://github.com/user/unloop-mcp.git
-cd unloop-mcp
-npm install
-npm run build
+npm install -g unloop-mcp
+```
+
+Or use directly without installing:
+```bash
+npx unloop-mcp
 ```
 
 ### 2. Add the MCP server
 
-**Claude Code** (global, works in all projects):
+**Claude Code** (one command, works in all projects):
 ```bash
-claude mcp add unloop -s user -- node /absolute/path/to/unloop-mcp/dist/src/index.js
+claude mcp add unloop -s user -- npx -y unloop-mcp
 ```
 
 **Cursor** — add to `.cursor/mcp.json`:
@@ -68,8 +70,20 @@ claude mcp add unloop -s user -- node /absolute/path/to/unloop-mcp/dist/src/inde
 {
   "mcpServers": {
     "unloop": {
-      "command": "node",
-      "args": ["/absolute/path/to/unloop-mcp/dist/src/index.js"]
+      "command": "npx",
+      "args": ["-y", "unloop-mcp"]
+    }
+  }
+}
+```
+
+**Windsurf** — add to `.windsurf/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "unloop": {
+      "command": "npx",
+      "args": ["-y", "unloop-mcp"]
     }
   }
 }
