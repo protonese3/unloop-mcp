@@ -62,9 +62,14 @@ IMPORTANT: The quality of detection depends on your fix_description. Be specific
 
       const sameErrorAttempts = store.getAttemptsForFingerprint(sid, fp);
       const previousAttempts = sameErrorAttempts.slice(0, -1);
-      const similarCount = previousAttempts.filter(
-        prev => jaccardSimilarity(prev.fix_tokens, tokens) >= SIMILARITY_THRESHOLD
-      ).length;
+      let similarCount = 0;
+      let maxSimilarity = 0;
+      for (const prev of previousAttempts) {
+        const sim = jaccardSimilarity(prev.fix_tokens, tokens);
+        if (sim >= SIMILARITY_THRESHOLD) similarCount++;
+        if (sim > maxSimilarity) maxSimilarity = sim;
+      }
+      maxSimilarity = Math.round(maxSimilarity * 100) / 100;
 
       const strategies = getStrategies(level, category);
       const message = getEscalationMessage(level, fpCount);
@@ -74,6 +79,7 @@ IMPORTANT: The quality of detection depends on your fix_description. Be specific
         loop_level: level,
         attempt_number: fpCount,
         similar_attempts: similarCount,
+        max_similarity: maxSimilarity,
         message,
         error_category: category,
         strategies: strategies.length > 0 ? strategies : undefined,
@@ -124,7 +130,7 @@ Strategies are matched to your error category (syntax, type, import, build, test
 
 Call this when you want strategy suggestions without logging a new attempt — for example, when planning your next move after a NUDGE alert.`,
     {
-      error_category: z.enum(["syntax", "type", "import", "build", "test", "runtime", "unknown"]).optional().describe("Error category for targeted strategies. Auto-detected from your last logged attempt if omitted."),
+      error_category: z.enum(["syntax", "type", "import", "build", "test", "runtime", "config", "unknown"]).optional().describe("Error category for targeted strategies. Auto-detected from your last logged attempt if omitted."),
       session_id: z.string().optional().describe("Session ID. Defaults to 'default'."),
     },
     async ({ error_category, session_id }) => {

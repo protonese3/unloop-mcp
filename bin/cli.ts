@@ -5,7 +5,10 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const RULES_DIR = join(__dirname, "..", "rules");
+// From dist/bin/cli.js, rules/ is at ../../rules/
+const RULES_DIR = existsSync(join(__dirname, "..", "rules"))
+  ? join(__dirname, "..", "rules")
+  : join(__dirname, "..", "..", "rules");
 
 type IDE = "cursor" | "claude" | "windsurf" | "cline";
 

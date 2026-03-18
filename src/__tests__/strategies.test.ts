@@ -29,6 +29,13 @@ describe("getStrategies", () => {
     expect(actions).toContain("revert");
   });
 
+  it("returns config-specific strategies", () => {
+    const strategies = getStrategies("NUDGE", "config");
+    expect(strategies.length).toBeGreaterThan(getStrategies("NUDGE", "unknown").length);
+    const titles = strategies.map(s => s.title.toLowerCase()).join(" ");
+    expect(titles).toContain("config");
+  });
+
   it("CRITICAL strategies include asking the user", () => {
     const strategies = getStrategies("CRITICAL", "unknown");
     const actions = strategies.map(s => s.action.toLowerCase()).join(" ");
@@ -37,7 +44,7 @@ describe("getStrategies", () => {
 
   it("all strategies have non-empty fields", () => {
     const levels = ["NUDGE", "WARNING", "CRITICAL"] as const;
-    const categories = ["syntax", "type", "import", "build", "test", "runtime", "unknown"] as const;
+    const categories = ["syntax", "type", "import", "build", "test", "runtime", "config", "unknown"] as const;
 
     for (const level of levels) {
       for (const cat of categories) {

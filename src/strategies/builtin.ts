@@ -224,6 +224,32 @@ const STRATEGIES: Record<string, EscapeStrategy[]> = {
       reasoning: "Async bugs are invisible in static code review. The code looks correct but executes in the wrong order.",
     },
   ],
+
+  // ── Config errors ──────────────────────────────────────────────
+  "NUDGE:config": [
+    {
+      title: "Read the config file top to bottom",
+      action: "Open the config file the error mentions (tsconfig, webpack, vite, eslint, etc.) and read every field. Check for typos, deprecated options, and fields that conflict with each other.",
+      reasoning: "Config files are rarely read carefully. A single typo or conflicting option causes errors that look like code bugs.",
+    },
+    {
+      title: "Compare with a known-working config",
+      action: "Find a project that works with a similar setup and compare configs side by side. Diff the two files to spot differences.",
+      reasoning: "Config formats change between versions and documentation is often outdated. A working reference is more reliable.",
+    },
+  ],
+  "WARNING:config": [
+    {
+      title: "Check config against the installed version",
+      action: "Verify the version of the tool (tsc, webpack, eslint, etc.) and read the changelog for breaking config changes. An option that worked in v4 may not exist in v5.",
+      reasoning: "Config errors after dependency updates are almost always version mismatches — the config format changed.",
+    },
+    {
+      title: "Strip the config to minimal",
+      action: "Remove everything from the config except the bare minimum needed to run. Add options back one at a time until the error returns. The last option you added is the problem.",
+      reasoning: "Binary search on config options is faster than guessing which of 30 fields is wrong.",
+    },
+  ],
 };
 
 const LEVEL_CASCADE: Record<EscalationLevel, EscalationLevel[]> = {

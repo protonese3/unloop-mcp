@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "unloop": {
+      "command": "node",
+      "args": ["dist/src/index.js"],
+      "cwd": "."
+    }
+  }
+}

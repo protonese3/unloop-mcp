@@ -39,6 +39,7 @@ const CATEGORY_PATTERNS: [ErrorCategory, RegExp][] = [
   ["import", /cannot\s*find\s*module|module\s*not\s*found|import\s*error|no\s*module\s*named|failed\s*to\s*resolve|unable\s*to\s*resolve|could\s*not\s*resolve/i],
   ["type", /type\s*error|type\s*'[^']*'\s*is\s*not\s*assignable|cannot\s*find\s*name|ts\d{4}|property\s*'[^']*'\s*does\s*not\s*exist|argument.*not\s*assignable|incompatible\s*types?/i],
   ["runtime", /runtime\s*error|reference\s*error|null\s*pointer|undefined\s*is\s*not|cannot\s*read\s*propert|segmentation\s*fault|stack\s*overflow|out\s*of\s*memory|ENOENT|EACCES|ECONNREFUSED|unhandled.*rejection|uncaught/i],
+  ["config", /invalid\s*configuration|configuration\s*error|\.env|tsconfig|webpack\.config|vite\.config|eslint.*config|babel.*config|invalid\s*option|unknown\s*option|unrecognized\s*option|ENOENT.*config|missing.*configuration/i],
 ];
 
 export function categorizeError(message: string): ErrorCategory {

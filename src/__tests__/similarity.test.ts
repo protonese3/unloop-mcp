@@ -66,4 +66,22 @@ describe("jaccardSimilarity", () => {
     const b = tokenize("Refactor component to use class-based approach with state management");
     expect(jaccardSimilarity(a, b)).toBeLessThan(SIMILARITY_THRESHOLD);
   });
+
+  it("detects same-approach path variations as similar", () => {
+    const a = tokenize("Changed import path from ./components/Button to ../components/Button");
+    const b = tokenize("Changed import path from ../components/Button to ../../components/Button");
+    expect(jaccardSimilarity(a, b)).toBeGreaterThanOrEqual(SIMILARITY_THRESHOLD);
+  });
+
+  it("distinguishes code fix from config fix", () => {
+    const a = tokenize("Added optional chaining to user.name to prevent null reference");
+    const b = tokenize("Changed tsconfig strict mode to false and set moduleResolution to bundler");
+    expect(jaccardSimilarity(a, b)).toBeLessThan(SIMILARITY_THRESHOLD);
+  });
+
+  it("distinguishes code fix from environment fix", () => {
+    const a = tokenize("Wrapped async function call in try catch block with error fallback");
+    const b = tokenize("Deleted node_modules and package-lock then ran npm install fresh");
+    expect(jaccardSimilarity(a, b)).toBeLessThan(SIMILARITY_THRESHOLD);
+  });
 });

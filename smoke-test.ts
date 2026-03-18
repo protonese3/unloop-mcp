@@ -77,6 +77,7 @@ async function main() {
     fix_description: "Another fix attempt",
   });
   check("NUDGE triggers at attempt 4", r3.loop_level === "NUDGE");
+  check("max_similarity is a number", typeof r3.max_similarity === "number");
   check("Status is loop_detected", r3.status === "loop_detected");
   check("Strategies are returned", Array.isArray(r3.strategies) && r3.strategies.length > 0);
   check("Previous attempts included", Array.isArray(r3.previous_attempts) && r3.previous_attempts.length > 0);

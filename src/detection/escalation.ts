@@ -16,11 +16,11 @@ export function getEscalationLevel(sameErrorCount: number): EscalationLevel {
 const MESSAGES: Record<EscalationLevel, (count: number) => string> = {
   NONE: (n) => `Tracking attempt #${n}. No loop detected.`,
   NUDGE: (n) =>
-    `You've attempted to fix this same error ${n} times. Consider a fundamentally different approach instead of incremental variations.`,
+    `You've attempted to fix this same error ${n} times. You are starting to loop. Read the strategies below and try a fundamentally different approach — not another variation of what you've already tried.`,
   WARNING: (n) =>
-    `STOP. You've tried ${n} times with the same error. Do NOT try another incremental fix. You must change your approach entirely. Review the strategies below.`,
+    `STOP. ${n} failed attempts on the same error. Do NOT write more code. Revert your changes (git stash), then read the strategies below. If they say to read docs or check config, do that BEFORE touching any code.`,
   CRITICAL: (n) =>
-    `CRITICAL: ${n} failed attempts on the same error. STOP IMMEDIATELY. Do NOT attempt another fix. Revert your changes and ask the user for guidance. Follow the strategies below.`,
+    `CRITICAL: ${n} failed attempts. STOP IMMEDIATELY. Revert ALL changes since this error first appeared. Tell the user exactly what you tried and why each attempt failed. Do NOT continue without user direction.`,
 };
 
 export function getEscalationMessage(level: EscalationLevel, count: number): string {

@@ -33,11 +33,10 @@ describe("fingerprint edge cases", () => {
     expect(fp1).toBe(fp2);
   });
 
-  it("handles ANSI escape codes in errors", () => {
+  it("strips ANSI escape codes and produces same fingerprint", () => {
     const fp1 = fingerprint("\x1b[31mTypeError: x is undefined\x1b[0m");
     const fp2 = fingerprint("TypeError: x is undefined");
-    // ANSI codes change the fingerprint — that's ok, just shouldn't crash
-    expect(fp1).toBeDefined();
+    expect(fp1).toBe(fp2);
   });
 });
 

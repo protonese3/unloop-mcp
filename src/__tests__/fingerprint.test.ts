@@ -79,6 +79,14 @@ describe("categorizeError", () => {
     expect(categorizeError("Cannot read properties of undefined")).toBe("runtime");
   });
 
+  it("detects config errors", () => {
+    expect(categorizeError("Invalid configuration: unknown option 'target'")).toBe("config");
+    expect(categorizeError("Error reading tsconfig.json")).toBe("config");
+    expect(categorizeError("Configuration error in webpack.config.js")).toBe("build"); // "webpack" matches build first
+    expect(categorizeError("Invalid option 'strictNullChecks2' in tsconfig")).toBe("config");
+    expect(categorizeError("missing configuration file .env.local")).toBe("config");
+  });
+
   it("returns unknown for unrecognized errors", () => {
     expect(categorizeError("Something went wrong")).toBe("unknown");
   });

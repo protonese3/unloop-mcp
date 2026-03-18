@@ -1,6 +1,6 @@
 export type EscalationLevel = "NONE" | "NUDGE" | "WARNING" | "CRITICAL";
 
-export type ErrorCategory = "syntax" | "type" | "import" | "build" | "test" | "runtime" | "unknown";
+export type ErrorCategory = "syntax" | "type" | "import" | "build" | "test" | "runtime" | "config" | "unknown";
 
 export interface FixAttempt {
   error_message: string;
@@ -32,6 +32,7 @@ export interface LogFixAttemptResult {
   loop_level: EscalationLevel;
   attempt_number: number;
   similar_attempts: number;
+  max_similarity: number;
   message: string;
   error_category: ErrorCategory;
   strategies?: EscapeStrategy[];
